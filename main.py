@@ -1,5 +1,5 @@
 import semantic_kernel as sk
-from semantic_kernel.connectors.ai import OpenAITextCompletion
+from semantic_kernel.connectors.ai import AzureTextCompletion
 from code_executor import CodeExecutor, CodeExecutionRequest
 import asyncio
 import os
@@ -12,11 +12,18 @@ async def main():
     # Load environment variables
     load_dotenv()
     
-    # Configure AI service
-    api_key = os.getenv("OPENAI_API_KEY")
-    deployment = os.getenv("OPENAI_DEPLOYMENT_NAME", "text-davinci-003")
-    service = OpenAITextCompletion(deployment, api_key)
-    kernel.add_text_completion_service("openai", service)
+    # Configure Azure OpenAI service
+    deployment = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
+    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    
+    # Create Azure OpenAI service
+    service = AzureTextCompletion(
+        deployment_name=deployment,
+        endpoint=endpoint,
+        api_key=api_key
+    )
+    kernel.add_text_completion_service("azure", service)
 
     # Create semantic function for code generation
     prompt = """

@@ -3,8 +3,8 @@
 =======
 # Semantic Kernel Code Execution with Judge0
 
-This project demonstrates safe code execution using Microsoft's Semantic Kernel and the Judge0 API. It shows how to:
-1. Use Semantic Kernel to generate code
+This project demonstrates safe code execution using Microsoft's Semantic Kernel (with Azure OpenAI) and the Judge0 API. It shows how to:
+1. Use Semantic Kernel with Azure OpenAI to generate code
 2. Safely validate and execute code using Judge0 API
 3. Handle execution results and potential security concerns
 
@@ -15,9 +15,15 @@ This project demonstrates safe code execution using Microsoft's Semantic Kernel 
 pip install -r requirements.txt
 ```
 
-2. Create a `.env` file with your Judge0 API credentials:
+2. Create a `.env` file with your API credentials:
 ```
-JUDGE0_API_KEY=your_api_key_here
+# Azure OpenAI Configuration
+AZURE_OPENAI_API_KEY=your_azure_openai_key_here
+AZURE_OPENAI_ENDPOINT=your_azure_endpoint_here
+AZURE_OPENAI_DEPLOYMENT_NAME=your_deployment_name_here
+
+# Judge0 API Key (from RapidAPI)
+JUDGE0_API_KEY=your_judge0_api_key_here
 ```
 
 ## Usage
