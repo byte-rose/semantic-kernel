@@ -1,20 +1,24 @@
-import asyncio
-from typing import Annotated
 import os
-from semantic_kernel.agents import ChatCompletionAgent
-from semantic_kernel.connectors.ai.function_choice_behavior import FunctionChoiceBehavior
+import asyncio
+from dotenv import load_dotenv
+from semantic_kernel.kernel import Kernel
 from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
+from semantic_kernel.agents import ChatCompletionAgent
 from semantic_kernel.contents.chat_history import ChatHistory
 from semantic_kernel.contents.utils.author_role import AuthorRole
-from semantic_kernel.functions.kernel_function_decorator import kernel_function
-from semantic_kernel.kernel import Kernel
-from dotenv import load_dotenv
+from semantic_kernel.connectors.ai.function_choice_behavior import FunctionChoiceBehavior
 from plugins.adminplugin import AdminPlugin
-from plugins.researchplugin import ResearchPlugin
-from plugins.generatorplugin import GeneratorPlugin
+from plugins.contentplugin import ContentPlugin
+from utils.logging_config import setup_logging, log_separator, pretty_print_json
+import logging
 
-load_dotenv()
+# Set up logging
+logger = setup_logging(console_level=logging.INFO, file_level=logging.DEBUG)
 
+# Enable streaming responses
+streaming = True
+
+# Define agent configuration
 AGENT_NAME = "BloggingAgent"
 AGENT_INSTRUCTIONS = """
 You are an AI blogging assistant that specializes in creating high-quality blog posts about AI and security topics.
@@ -33,96 +37,89 @@ When generating blog posts, include:
 - Source citations
 """
 
-class BlogWorkflowPlugin:
-    """Plugin for managing the blog creation workflow."""
-
-    @kernel_function(description="Get a list of trending AI and security topics")
-    def get_trending_topics(self) -> Annotated[str, "Returns a list of trending topics"]:
-        return """
-        1. AI Security in Cloud Computing
-        2. Zero Trust Architecture
-        3. Machine Learning for Threat Detection
-        4. AI Governance and Regulation
-        5. Quantum Computing Security
-        """
-
-    @kernel_function(description="Research a specific topic")
-    def research_topic(
-        self, topic: Annotated[str, "The topic to research"]
-    ) -> Annotated[str, "Returns detailed research about the topic"]:
-        return f"Detailed research about {topic} would be conducted using Tavily API"
-
-    @kernel_function(description="Generate a blog post")
-    def generate_blog(
-        self,
-        title: Annotated[str, "The blog post title"],
-        content: Annotated[str, "The research content to base the blog on"]
-    ) -> Annotated[str, "Returns the generated blog post"]:
-        return f"Generated blog post about {title} based on the research"
-
-    @kernel_function(description="Post a blog draft")
-    def post_draft(
-        self,
-        title: Annotated[str, "The blog post title"],
-        content: Annotated[str, "The blog post content"]
-    ) -> Annotated[str, "Returns the result of posting the draft"]:
-        return f"Blog post '{title}' has been posted as a draft"
-
 async def invoke_agent(agent: ChatCompletionAgent, input: str, chat: ChatHistory) -> None:
-    """Invoke the agent with user input."""
+    """Invoke the agent with the user input."""
     chat.add_user_message(input)
-    print(f"\n# User: '{input}'")
-    
-    async for content in agent.invoke_stream(chat):
-        if content.role != AuthorRole.TOOL:
-            print(f"# Assistant: {content.content}")
-    chat.add_assistant_message(content.content)
+    logger.info(f"# {AuthorRole.USER}: '{input}'")
+
+    if streaming:
+        contents = []
+        content_name = ""
+        async for content in agent.invoke_stream(chat):
+            content_name = content.name
+            contents.append(content)
+        message_content = "".join([content.content for content in contents])
+        logger.info(f"# {content.role} - {content_name or '*'}: '{message_content}'")
+        chat.add_assistant_message(message_content)
+    else:
+        async for content in agent.invoke(chat):
+            logger.info(f"# {content.role} - {content.name or '*'}: '{content.content}'")
+        chat.add_message(content)
 
 async def main():
-    # Create kernel and register plugins
-    kernel = Kernel()
-    kernel.add_plugin(BlogWorkflowPlugin(), plugin_name="blog")
-    kernel.add_plugin(AdminPlugin(), plugin_name="admin")
-    kernel.add_plugin(ResearchPlugin(), plugin_name="research")
-    kernel.add_plugin(GeneratorPlugin(), plugin_name="generator")
-
-    # Add Azure Chat Completion service
-    service_id = "blogging_agent"
-    kernel.add_service(
-        AzureChatCompletion(
-            service_id=service_id,
-            deployment_name="gpt-4o-2",
-            endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-            api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-            api_version="2024-08-01-preview"
-        )
-    )
-
-    # Configure settings
-    settings = kernel.get_prompt_execution_settings_from_service_id(service_id=service_id)
-    settings.function_choice_behavior = FunctionChoiceBehavior.Auto()
-
-    # Create the agent
-    agent = ChatCompletionAgent(
-        service_id=service_id,
-        kernel=kernel,
-        name=AGENT_NAME,
-        instructions=AGENT_INSTRUCTIONS,
-        execution_settings=settings
-    )
-
-    # Create chat history
-    chat = ChatHistory()
-
     try:
-        print("Welcome to the AI Blog Generator!")
-        print("You can ask me to:")
-        print("- Find trending topics")
-        print("- Research a specific topic")
-        print("- Generate a blog post")
-        print("- Post a draft")
-        print("Type 'exit' to quit")
+        log_separator(logger, "Initializing Semantic Kernel", logging.INFO)
+        
+        # Load environment variables
+        load_dotenv()
+        
+        # Azure OpenAI Configuration
+        endpoint = "https://ujao-ai.openai.azure.com"
+        deployment = "gpt-4o-2"
+        api_version = "2024-08-01-preview"
+        api_key = os.getenv("AZURE_OPENAI_API_KEY")
 
+        if not api_key:
+            raise ValueError("AZURE_OPENAI_API_KEY environment variable is required")
+
+        # Create the instance of the Kernel
+        kernel = Kernel()
+        
+        # Configure AI service
+        service_id = "blogging_agent"
+        azure_chat_service = AzureChatCompletion(
+            service_id=service_id,
+            deployment_name=deployment,
+            endpoint=endpoint,
+            api_key=api_key,
+            api_version=api_version
+        )
+        
+        kernel.add_service(azure_chat_service)
+        logger.info("Azure OpenAI service configured successfully")
+
+        # Configure the function choice behavior
+        settings = kernel.get_prompt_execution_settings_from_service_id(service_id=service_id)
+        settings.function_choice_behavior = FunctionChoiceBehavior.Auto()
+
+        # Import plugins
+        log_separator(logger, "Importing Plugins")
+        kernel.add_plugin(AdminPlugin(), plugin_name="admin")
+        kernel.add_plugin(ContentPlugin(), plugin_name="content")
+        logger.info("Plugins imported successfully")
+
+        # Create the agent
+        agent = ChatCompletionAgent(
+            service_id=service_id,
+            kernel=kernel,
+            name=AGENT_NAME,
+            instructions=AGENT_INSTRUCTIONS,
+            execution_settings=settings
+        )
+
+        # Create chat history
+        chat = ChatHistory()
+
+        # Print welcome message
+        logger.info("\nWelcome to the AI Blog Generator!")
+        logger.info("You can ask me to:")
+        logger.info("- Find trending topics")
+        logger.info("- Research a specific topic")
+        logger.info("- Generate a blog post")
+        logger.info("- Post a draft")
+        logger.info("Type 'exit' to quit\n")
+
+        # Interactive chat loop
         while True:
             user_input = input("\nWhat would you like me to do? > ")
             if user_input.lower() == 'exit':
@@ -130,8 +127,17 @@ async def main():
 
             await invoke_agent(agent, user_input, chat)
 
+    except ValueError as e:
+        logger.error(str(e))
     except Exception as e:
-        print(f"Error: {str(e)}")
+        logger.exception("An error occurred during execution")
+        raise
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+        logger.info("Program completed successfully")
+    except KeyboardInterrupt:
+        logger.info("Program terminated by user")
+    except Exception as e:
+        logger.error(f"Program terminated with error: {str(e)}")

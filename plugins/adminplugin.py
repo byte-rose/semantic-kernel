@@ -3,15 +3,14 @@ import jwt
 from datetime import datetime as date
 from dotenv import load_dotenv
 import os
-import logging
 import json
-import uuid
+import logging
 from semantic_kernel.functions.kernel_function_decorator import kernel_function
 from typing import Annotated
+from utils.logging_config import setup_logging, log_separator, pretty_print_json
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger()
+# Set up logging
+logger = setup_logging(console_level=logging.INFO, file_level=logging.DEBUG)
 
 class AdminPlugin:
     """
@@ -28,6 +27,7 @@ class AdminPlugin:
             raise ValueError("GHOST_API_URL environment variable is not set.")
 
     def _generate_token(self):
+        """Generate JWT token for Ghost Admin API authentication"""
         id, secret = self.api_key.split(':')
         iat = int(date.now().timestamp())
         
@@ -42,7 +42,7 @@ class AdminPlugin:
 
     def _content_to_lexical(self, content: str) -> str:
         """Convert content to Lexical format"""
-        logger.debug("Converting content to Lexical format:")
+        log_separator(logger, "Converting content to Lexical format")
         logger.debug(f"Raw content type: {type(content)}")
         logger.debug(f"Raw content length: {len(str(content))}")
         logger.debug("Raw content:")
@@ -75,7 +75,7 @@ class AdminPlugin:
                     text = header.lstrip('#').strip()
                     
                     node = {
-                        "type": f"heading",
+                        "type": "heading",
                         "tag": f"h{level}",
                         "format": "",
                         "indent": 0,
@@ -125,7 +125,8 @@ class AdminPlugin:
                     }
                     children.append(node)
                 
-                logger.debug(f"Processed node {i+1}: {json.dumps(node, indent=2)}")
+                logger.debug(f"Processed node {i+1}:")
+                pretty_print_json(node, logger)
         
         lexical = {
             "root": {
@@ -137,11 +138,10 @@ class AdminPlugin:
             }
         }
         
-        lexical_str = json.dumps(lexical)
-        logger.debug("Final Lexical structure:")
-        logger.debug(json.dumps(lexical, indent=2))
+        log_separator(logger, "Final Lexical structure")
+        pretty_print_json(lexical, logger)
         
-        return lexical_str
+        return json.dumps(lexical)
 
     @kernel_function(description="Post a blog draft to Ghost")
     def post_draft(
@@ -150,12 +150,8 @@ class AdminPlugin:
         content: Annotated[str, "The content of the blog post"]
     ) -> Annotated[str, "Result of posting the draft"]:
         try:
-            logger.debug("="*50)
-            logger.debug("POST DRAFT FUNCTION CALLED")
-            logger.debug("="*50)
-            logger.debug(f"Title type: {type(title)}")
-            logger.debug(f"Content type: {type(content)}")
-            logger.debug(f"Title: {title}")
+            log_separator(logger, "POST DRAFT FUNCTION CALLED", logging.INFO)
+            logger.info(f"Title: {title}")
             logger.debug("Content:")
             logger.debug(content)
             
@@ -183,12 +179,12 @@ class AdminPlugin:
                 }]
             }
             
-            logger.debug("="*50)
-            logger.debug("SENDING REQUEST")
-            logger.debug("="*50)
+            log_separator(logger, "SENDING REQUEST")
             logger.debug(f"URL: {self.api_url.rstrip('/')}/ghost/api/admin/posts")
-            logger.debug(f"Headers: {json.dumps(headers, indent=2)}")
-            logger.debug(f"Post Data: {json.dumps(post_data, indent=2)}")
+            logger.debug("Headers:")
+            pretty_print_json(headers, logger)
+            logger.debug("Post Data:")
+            pretty_print_json(post_data, logger)
             
             response = requests.post(
                 f"{self.api_url.rstrip('/')}/ghost/api/admin/posts",
@@ -196,16 +192,19 @@ class AdminPlugin:
                 headers=headers
             )
             
-            logger.debug("="*50)
-            logger.debug("RECEIVED RESPONSE")
-            logger.debug("="*50)
+            log_separator(logger, "RECEIVED RESPONSE")
             logger.debug(f"Status Code: {response.status_code}")
-            logger.debug(f"Response Headers: {json.dumps(dict(response.headers), indent=2)}")
-            logger.debug(f"Response Body: {json.dumps(response.json() if response.text else {}, indent=2)}")
+            logger.debug("Response Headers:")
+            pretty_print_json(dict(response.headers), logger)
+            
+            if response.text:
+                logger.debug("Response Body:")
+                pretty_print_json(response.json(), logger)
             
             if response.status_code == 201:
-                logger.info("Draft created successfully!")
-                return f"Successfully created draft: {title}"
+                success_msg = f"Successfully created draft: {title}"
+                logger.info(success_msg)
+                return success_msg
             else:
                 error_msg = f"Failed to create draft. Status: {response.status_code}, Response: {response.text}"
                 logger.error(error_msg)
