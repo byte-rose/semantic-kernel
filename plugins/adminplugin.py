@@ -174,8 +174,8 @@ class AdminPlugin:
                     "lexical": lexical,
                     "status": "draft",
                     "visibility": "public",
-                    "created_at": date.timezone.utc().isoformat() + 'Z',
-                    "updated_at": date.timezome.utc().isoformat() + 'Z'
+                    "created_at": date.utcnow().isoformat() + 'Z',
+                    "updated_at": date.utcnow().isoformat() + 'Z'
                 }]
             }
             

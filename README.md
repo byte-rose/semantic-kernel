@@ -22,6 +22,12 @@ A powerful blogging assistant built with Semantic Kernel that helps you create, 
   - Natural language interaction
   - Smart content structuring
 
+- **CLI Interface**
+  - Interactive and command-based modes
+  - Persistent chat history
+  - Topic storage and management
+  - Real-time streaming responses
+
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -62,18 +68,40 @@ SERPAPI_KEY=your-serp-api-key
 TAVILY_API_KEY=your-tavily-api-key
 ```
 
-### Usage
+### CLI Usage
 
-Run the assistant:
+The assistant provides both interactive and command-line interfaces:
+
 ```bash
-python main.py
+# List all commands
+./cli.py --help
+
+# Find trending topics
+./cli.py topics
+
+# Research a specific topic
+./cli.py research "AI Security in Cloud Computing"
+
+# Generate a blog post
+./cli.py blog "Zero Trust Architecture" --tone technical
+
+# Publish to Ghost
+./cli.py publish "My Blog Title"
+
+# Start interactive mode
+./cli.py interactive
+
+# View chat history
+./cli.py history
+
+# Clear chat history
+./cli.py clear
 ```
 
-Available commands:
-- `Find trending topics`: Discover current AI and security topics
-- `Research [topic]`: Conduct in-depth research on a topic
-- `Generate blog post about [topic]`: Create a new blog post
-- `Post draft`: Submit the generated content as a draft to Ghost
+The CLI maintains state between commands, storing:
+- Chat history
+- Found topics
+- Conversation context
 
 ## 🔧 Architecture
 
@@ -94,8 +122,14 @@ Available commands:
    - Handles post creation and updates
    - Formats content for Ghost's Lexical format
 
-4. **Utilities** (`utils/`)
+4. **CLI Interface** (`cli.py`)
+   - Provides command-line interface
+   - Manages persistent state
+   - Handles real-time streaming
+
+5. **Utilities** (`utils/`)
    - Logging configuration
+   - State management
    - Helper functions
 
 ### Technologies
@@ -105,6 +139,25 @@ Available commands:
 - **Ghost API**: Blog platform integration
 - **Tavily**: AI-powered research (optional)
 - **SERP API**: Topic discovery (optional)
+- **Click**: CLI framework
+
+## 🔄 Roadmap
+
+### Current Development
+
+- [x] Basic blogging functionality
+- [x] Ghost integration
+- [x] CLI interface
+- [x] State persistence
+- [x] Real-time streaming
+
+### Planned Features
+
+- [ ] Migration to Azure OpenAI Assistants
+- [ ] Enhanced research capabilities
+- [ ] Scheduled content generation
+- [ ] Multi-blog support
+- [ ] Content analytics integration
 
 ## 🔐 Security
 
@@ -119,6 +172,7 @@ Available commands:
 1. Create a new plugin in the `plugins/` directory
 2. Register the plugin in `main.py`
 3. Update the agent instructions if needed
+4. Add CLI commands if required
 
 ### Code Style
 
@@ -166,9 +220,12 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - [Semantic Kernel Documentation](https://learn.microsoft.com/en-us/semantic-kernel/overview/)
 - [Ghost API Documentation](https://ghost.org/docs/content-api/)
 - [Azure OpenAI Service](https://azure.microsoft.com/en-us/services/cognitive-services/openai-service/)
+- [Azure OpenAI Assistants](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/assistant)
 
 ## ✨ Acknowledgments
 
 - Microsoft Semantic Kernel team
 - Ghost platform developers
 - Azure OpenAI team
+
+Made with ❤️ in Kiambu, Kenya
