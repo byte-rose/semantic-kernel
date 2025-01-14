@@ -9,14 +9,11 @@ from semantic_kernel.contents.utils.author_role import AuthorRole
 from semantic_kernel.connectors.ai.function_choice_behavior import FunctionChoiceBehavior
 from plugins.adminplugin import AdminPlugin
 from plugins.contentplugin import ContentPlugin
-from utils.logging_config import setup_logging, log_separator, pretty_print_json
+from utils.logging_config import setup_logging, log_separator
 import logging
 
 # Set up logging
 logger = setup_logging(console_level=logging.INFO, file_level=logging.DEBUG)
-
-# Enable streaming responses
-streaming = True
 
 # Define agent configuration
 AGENT_NAME = "BloggingAgent"
@@ -42,7 +39,7 @@ async def invoke_agent(agent: ChatCompletionAgent, input: str, chat: ChatHistory
     chat.add_user_message(input)
     logger.info(f"# {AuthorRole.USER}: '{input}'")
 
-    if streaming:
+    try:
         contents = []
         content_name = ""
         async for content in agent.invoke_stream(chat):
@@ -51,10 +48,9 @@ async def invoke_agent(agent: ChatCompletionAgent, input: str, chat: ChatHistory
         message_content = "".join([content.content for content in contents])
         logger.info(f"# {content.role} - {content_name or '*'}: '{message_content}'")
         chat.add_assistant_message(message_content)
-    else:
-        async for content in agent.invoke(chat):
-            logger.info(f"# {content.role} - {content.name or '*'}: '{content.content}'")
-        chat.add_message(content)
+    except Exception as e:
+        logger.error(f"Error during agent invocation: {str(e)}")
+        raise
 
 async def main():
     try:
@@ -72,11 +68,10 @@ async def main():
         if not api_key:
             raise ValueError("AZURE_OPENAI_API_KEY environment variable is required")
 
-        # Create the instance of the Kernel
+        # Initialize kernel and configure AI service
         kernel = Kernel()
-        
-        # Configure AI service
         service_id = "blogging_agent"
+        
         azure_chat_service = AzureChatCompletion(
             service_id=service_id,
             deployment_name=deployment,
@@ -88,7 +83,7 @@ async def main():
         kernel.add_service(azure_chat_service)
         logger.info("Azure OpenAI service configured successfully")
 
-        # Configure the function choice behavior
+        # Configure function choice behavior
         settings = kernel.get_prompt_execution_settings_from_service_id(service_id=service_id)
         settings.function_choice_behavior = FunctionChoiceBehavior.Auto()
 
@@ -98,7 +93,7 @@ async def main():
         kernel.add_plugin(ContentPlugin(), plugin_name="content")
         logger.info("Plugins imported successfully")
 
-        # Create the agent
+        # Create agent and chat history
         agent = ChatCompletionAgent(
             service_id=service_id,
             kernel=kernel,
@@ -106,8 +101,6 @@ async def main():
             instructions=AGENT_INSTRUCTIONS,
             execution_settings=settings
         )
-
-        # Create chat history
         chat = ChatHistory()
 
         # Print welcome message
@@ -124,7 +117,6 @@ async def main():
             user_input = input("\nWhat would you like me to do? > ")
             if user_input.lower() == 'exit':
                 break
-
             await invoke_agent(agent, user_input, chat)
 
     except ValueError as e:
