@@ -174,12 +174,12 @@ class AdminPlugin:
                     "lexical": lexical,
                     "status": "draft",
                     "visibility": "public",
-                    "created_at": date.utcnow().isoformat() + 'Z',
-                    "updated_at": date.utcnow().isoformat() + 'Z'
+                    "created_at": date.timezone.utc().isoformat() + 'Z',
+                    "updated_at": date.timezome.utc().isoformat() + 'Z'
                 }]
             }
             
-            log_separator(logger, "SENDING REQUEST")
+            log_separator(logger, "SENDING REQUEST TO GHOST")
             logger.debug(f"URL: {self.api_url.rstrip('/')}/ghost/api/admin/posts")
             logger.debug("Headers:")
             pretty_print_json(headers, logger)
@@ -192,7 +192,7 @@ class AdminPlugin:
                 headers=headers
             )
             
-            log_separator(logger, "RECEIVED RESPONSE")
+            log_separator(logger, "RECEIVED RESPONSE FROM GHOST")
             logger.debug(f"Status Code: {response.status_code}")
             logger.debug("Response Headers:")
             pretty_print_json(dict(response.headers), logger)
@@ -202,15 +202,15 @@ class AdminPlugin:
                 pretty_print_json(response.json(), logger)
             
             if response.status_code == 201:
-                success_msg = f"Successfully created draft: {title}"
+                success_msg = f"Successfully created the blog draft: {title}"
                 logger.info(success_msg)
                 return success_msg
             else:
-                error_msg = f"Failed to create draft. Status: {response.status_code}, Response: {response.text}"
+                error_msg = f"Failed to create the blog draft. Status: {response.status_code}, Response: {response.text}"
                 logger.error(error_msg)
                 return error_msg
                 
         except Exception as e:
-            error_msg = f"Error creating draft: {str(e)}"
+            error_msg = f"Error creating blog draft: {str(e)}"
             logger.exception(error_msg)
             return error_msg

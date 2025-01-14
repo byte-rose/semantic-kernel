@@ -12,15 +12,15 @@ logger = setup_logging(console_level=logging.INFO, file_level=logging.DEBUG)
 
 class ContentPlugin:
     """
-    A plugin that handles all content-related operations for our blogging assistant.
+    A plugin that handles all content-related operations for the blogging agent.
     
     This plugin is responsible for:
-    1. Finding trending topics using SERP API
+    1. Finding trending topics using SERP API (when API key is available)
     2. Conducting research using Tavily's AI research engine
     3. Generating well-structured blog posts
     
     It gracefully falls back to mock data when API keys aren't available,
-    making it perfect for development and testing.
+   
     """
 
     def __init__(self):
@@ -37,12 +37,14 @@ class ContentPlugin:
         self.serpapi_key = os.getenv("SERPAPI_KEY")
         self.tavily_key = os.getenv("TAVILY_API_KEY")
         
-        # Let users know if we're using mock data
+        # Let a users know if we're using mock data
         if not self.serpapi_key:
             logger.warning("SERPAPI_KEY not set. We'll use example topics for now.")
         if not self.tavily_key:
             logger.warning("TAVILY_API_KEY not set. We'll use example research data for now.")
 
+
+##TODO: Immplement topic research and generation based on a scheduler.
     @kernel_function(description="Get trending blog topics")
     def get_trending_topics(self) -> str:
         """
@@ -70,6 +72,11 @@ class ContentPlugin:
                 "Machine Learning for Threat Detection",
                 "AI Governance and Regulation",
                 "Quantum Computing Security"
+                "Large Language Models for Security",
+                "Large Language Models pentesting",
+                "The threat Landscape of Enterprise AI",
+                "Blue Teaming with Large Language Models",
+                "Red Teaming with Large Language Models",
             ]
             
             # Format topics as a numbered list
@@ -107,24 +114,51 @@ class ContentPlugin:
         try:
             log_separator(logger, f"Researching: {topic}", logging.INFO)
             
-            # For now, we're using example research data
-            # TODO: Implement real Tavily API call when ready for production
-            research = f"""
-            Here's what we know about {topic}:
+            if self.tavily_key:
+                from tavily import TavilyClient
+                
+                # Initialize Tavily client
+                client = TavilyClient(api_key=self.tavily_key)
+                
+                # Perform research using Tavily
+                search_result = client.search(
+                    query=topic,
+                    search_depth="advanced",
+                    include_answer=True,
+                    include_raw_content=False,
+                    max_results=5,
+                    include_domains=["arxiv.org", "github.com", "microsoft.com", "google.com", "openai.com"],
+                    exclude_domains=["youtube.com", "facebook.com", "twitter.com"]
+                )
+                
+                # Extract the AI-generated answer
+                if search_result.get('answer'):
+                    research = search_result['answer']
+                else:
+                    # Format results if no AI answer
+                    research = "Research Findings:\n\n"
+                    for result in search_result.get('results', []):
+                        research += f"- {result.get('title', 'Untitled')}\n"
+                        research += f"  {result.get('content', 'No content available')}\n\n"
+                
+                logger.info("🔍 Tavily research completed successfully")
+                
+            else:
+                logger.warning("Using mock research data (TAVILY_API_KEY not set)")
+                research = f"""
+                Here's what we know about {topic}:
+                
+                Key Points:
+                - Latest trends and developments
+                - Expert insights and analysis
+                - Real-world applications
+                - Future implications
+                
+                The field of {topic} is rapidly evolving, with new developments emerging regularly.
+                Experts suggest focusing on practical implementations while keeping security in mind.
+                """
             
-            Key Points:
-            - Latest trends and developments
-            - Expert insights and analysis
-            - Real-world applications
-            - Future implications
-            
-            The field of {topic} is rapidly evolving, with new developments emerging regularly.
-            Experts suggest focusing on practical implementations while keeping security in mind.
-            """
-            
-            logger.info("🔍 Research completed successfully")
             logger.debug(f"Research results:\n{research}")
-            
             return research
             
         except Exception as e:
@@ -171,7 +205,7 @@ An engaging introduction to {title}, highlighting its significance in today's ra
 A thoughtful conclusion that summarizes key points and looks toward future developments.
 
 ---
-This post was crafted with ❤️ using AI-powered tools.
+Made with ❤️ in Kiambu, Kenya
             """
             
             logger.info("✍️ Blog post generated successfully")
@@ -188,7 +222,7 @@ This post was crafted with ❤️ using AI-powered tools.
     def generate_blog_from_topic(
         self,
         topic: Annotated[str, "The topic to write about"],
-        tone: Annotated[str, "The writing tone (e.g., professional, casual, technical)"] = "professional"
+        tone: Annotated[str, "The writing tone (e.g., professional, casual, technical)"] = "technical"
     ) -> str:
         """
         Create a complete blog post from just a topic.
