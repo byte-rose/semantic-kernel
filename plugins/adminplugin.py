@@ -1,6 +1,6 @@
 import requests
 import jwt
-from datetime import datetime as date
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 import os
 import json
@@ -29,7 +29,7 @@ class AdminPlugin:
     def _generate_token(self):
         """Generate JWT token for Ghost Admin API authentication"""
         id, secret = self.api_key.split(':')
-        iat = int(date.now().timestamp())
+        iat = int(datetime.now(timezone.utc).timestamp())
         
         header = {'alg': 'HS256', 'typ': 'JWT', 'kid': id}
         payload = {
@@ -174,8 +174,9 @@ class AdminPlugin:
                     "lexical": lexical,
                     "status": "draft",
                     "visibility": "public",
-                    "created_at": date.utcnow().isoformat() + 'Z',
-                    "updated_at": date.utcnow().isoformat() + 'Z'
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+
                 }]
             }
             
