@@ -176,6 +176,7 @@ class AdminPlugin:
                     "visibility": "public",
                     "created_at": datetime.now(timezone.utc).isoformat(),
                     "updated_at": datetime.now(timezone.utc).isoformat()
+
                 }]
             }
             
