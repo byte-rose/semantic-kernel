@@ -2,6 +2,7 @@
 semantic-kernel==1.18.1
 python-dotenv==1.0.1
 requests==2.31.0
+click==8.1.7  # CLI framework
 
 # Azure OpenAI
 openai==1.59.6
